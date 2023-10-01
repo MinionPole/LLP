@@ -19,7 +19,15 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="fileWork.c" />
     <ClCompile Include="start.c" />
+    <ClCompile Include="structures.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="fileWork.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="file.db" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
