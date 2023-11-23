@@ -21,13 +21,12 @@
   <ItemGroup>
     <ClCompile Include="fileWork.c" />
     <ClCompile Include="start.c" />
-    <ClCompile Include="structures.c" />
+    <ClCompile Include="tablework.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fileWork.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="file.db" />
+    <ClInclude Include="structures.h" />
+    <ClInclude Include="tablework.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
