@@ -97,23 +97,21 @@ int countFreeCellsOnPage(struct FileMapping* a, int page_num) {
 	struct map_file_of_view* page = openMyPage(a, page_num);
 	int ret = 0;
 	struct cell* now = (struct cell*)page->my_page_start;
+	enum cell_flag previous_flag = -1;
 	for (int i = 0; i < cellsOnList - 1; i++) {
-		if (now->flag == TEMPEST)
+		if (now->flag == TEMPEST && previous_flag == STRING_CONTINUE) {
+			ret = -1;
+			break;
+		}
+		if (now->flag == TEMPEST ) {
 			ret++;
+		}
 		now++;
 	}
 	UnmapViewOfFile(page->start);
 	return ret;
 }
 
-int openCell(struct map_file_of_view* page, struct map_file_of_view* page_copy, int num) {
-
-	if (num > cellsOnList) {
-		return -1;
-	}
-	page_copy->my_page_start = page->my_page_start + sizeof(struct cell) * num;
-	return 0;
-}
 
 int getTransportCell(struct map_file_of_view* page) {
 	struct cell* ret = (struct cell*)page->my_page_start;
@@ -121,10 +119,12 @@ int getTransportCell(struct map_file_of_view* page) {
 	return ret->int_data;
 }
 
-int setTransportCell(struct map_file_of_view* page, int x) {
+int setTransportCell(struct FileMapping* a, int page_num, int value) {
+	struct map_file_of_view* page = openMyPage(a, page_num);
 	struct cell* ret = (struct cell*)page->my_page_start;
 	ret += cellsOnList;
-	ret->int_data = x;
+	ret->int_data = value;
+	UnmapViewOfFile(page->start);
 	return 0;
 }
 
@@ -140,16 +140,12 @@ int openTableEl(struct map_file_of_view* page, struct map_file_of_view* page_cop
 
 unsigned char* setMyPageFree(struct FileMapping* a, int num) {
 	struct map_file_of_view* page = openMyPage(a, num);
-	struct map_file_of_view copy = {0};
-	openCell(page, &copy, 0);
-	struct cell* empty = (struct cell*)copy.my_page_start;
+	struct cell* empty = (struct cell*)page->my_page_start;
 	for (int i = 0; i < cellsOnList; i++) {
 		empty->flag = TEMPEST;
 		empty++;
 	}
 
-	openCell(page, &copy, cellsOnList);
-	empty = (struct cell*)copy.my_page_start;
 	empty->flag = TRANSPORT;
 	empty->int_data = -1;
 	UnmapViewOfFile(page->start);
@@ -157,14 +153,10 @@ unsigned char* setMyPageFree(struct FileMapping* a, int num) {
 
 unsigned char* setTableStartOnPage(struct FileMapping* a, int num) {
 	struct map_file_of_view* page = openMyPage(a, num);
-	struct map_file_of_view copy = { 0 };
-	openCell(page, &copy, 0);
-	struct cell* now_cell = (struct cell*)copy.my_page_start;
+	struct cell* now_cell = (struct cell*)page->my_page_start;
 	now_cell->flag = TABLE_START;
 
-	
-	openCell(page, &copy, cellsOnList);
-	now_cell = (struct cell*)copy.my_page_start;
+	now_cell += cellsOnList;
 	now_cell->flag = TRANSPORT;
 	now_cell->int_data = -1;
 	UnmapViewOfFile(page->start);
@@ -200,8 +192,6 @@ int registerFreePage(struct FileMapping* Maping, int num) {
 
 	UnmapViewOfFile(page->start);
 }
-
-
 
 
 
@@ -247,8 +237,8 @@ int getFreePage(struct FileMapping* Maping){
 				int temp = now->int_data;
 				UnmapViewOfFile(page->start);
 				page = openMyPage(Maping, temp);
-				continue;
 				now = (struct cell*)page->my_page_start;
+				continue;
 			}
 		}
 		if (now->flag == FREE_PAGE_DATA) {
@@ -263,11 +253,13 @@ int getFreePage(struct FileMapping* Maping){
 
 int fillerDataToPage(struct FileMapping* Maping, int page_num, int cell_num, struct cell raw[], int el_in_array) {
 	int raw_size = el_in_array;
+	int now_page_num = page_num;
 	struct map_file_of_view* page = openMyPage(Maping, page_num);
 	struct cell* now_cell = (struct cell*)page->my_page_start;
 	now_cell += cell_num;
 	int now_cell_num = cell_num;
 	int counter = 0;
+
 	while (counter < raw_size) {
 		for (; now_cell_num < cellsOnList && counter < raw_size;now_cell_num++) {
 			now_cell->flag = raw[counter].flag;
@@ -284,11 +276,13 @@ int fillerDataToPage(struct FileMapping* Maping, int page_num, int cell_num, str
 		// сейчас в page хранится номер следующей страницы, будущая третья
 		int next_page_num = getFreePage(Maping); // будущая вторая
 		int second_page = getTransportCell(page);
-		setTransportCell(page, next_page_num);
+		setTransportCell(Maping, now_page_num, next_page_num);
 		UnmapViewOfFile(page->start);
 
+
+		setTransportCell(Maping, next_page_num, second_page);
 		page = openMyPage(Maping, next_page_num);
-		setTransportCell(page, second_page);
+		now_page_num = next_page_num;
 		now_cell = (struct cell*)page->my_page_start;
 		now_cell_num = 0;
 	}
@@ -345,6 +339,7 @@ int pageCompresser(struct FileMapping* Maping, int page_num) {
 				arr[cnt].string_data[j] = now_cell->string_data[j];
 			cnt++;
 		}
+		now_cell++;
 	}
 	now_cell = (struct cell*)page->my_page_start;
 	for (int i = 0; i < cellsOnList; i++) {

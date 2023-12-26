@@ -13,8 +13,13 @@ int addRawToTable(struct FileMapping* a, int num, struct cell raw[], int el_in_a
 
 int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num);
 
-int changeValue(struct FileMapping* a, int table_num, int n, int m, struct cell* value[]);
+int changeRaw(struct FileMapping* a, int table_num, int n, struct cell* value[]);
 
-int getRawFromTable(struct FileMapping* a, struct table_data* table, struct cell* raw[]);
+int getRawSize(struct FileMapping* a, struct table_data* table, int raw_num);
+
+int getRawFromTable(struct FileMapping* a, struct table_data* table, struct cell raw[], int raw_num);
+
+int getValueFromRaw(struct cell raw[], int num);
 
 int getValueFromTable(struct FileMapping* a, struct table_data* table, int n, int m, struct cell* value[]);
+

@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="fileWork.c" />
+    <ClCompile Include="requstShell.h" />
     <ClCompile Include="start.c" />
     <ClCompile Include="tablework.c" />
   </ItemGroup>
@@ -27,6 +28,9 @@
     <ClInclude Include="fileWork.h" />
     <ClInclude Include="structures.h" />
     <ClInclude Include="tablework.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="init.txt" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

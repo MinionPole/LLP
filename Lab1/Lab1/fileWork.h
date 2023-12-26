@@ -40,7 +40,7 @@ int pageCompresser(struct FileMapping* Maping, int page_num);
 struct map_file_of_view* openMyPage(struct FileMapping* a, int num);
 unsigned char* setMyPageFree(struct FileMapping* a, int num);
 
-int countFreeCellsOnPage(struct map_file_of_view* page);
+int countFreeCellsOnPage(struct FileMapping* a, int page_num);
 
 int get_first_free_cell(struct FileMapping* Maping, int page_num);
 

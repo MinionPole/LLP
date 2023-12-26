@@ -5,6 +5,7 @@ int initTable(struct FileMapping* a, struct table_data* new_table) {
 	struct table_data* now = (struct table_data*) page->my_page_start;
 	int while_flag = 0;
 	int return_value = -1;
+	int now_page = table_block_start;
 	while (1) {
 		for (int i = 0; i < tableStructOnList; i++) {
 			if (now->flag != TABLE_ACTIVE) {
@@ -30,12 +31,13 @@ int initTable(struct FileMapping* a, struct table_data* new_table) {
 			int num = getTransportCell(page);
 			if (num == -1) {
 				int temp = getFreePage(a);
-				setTransportCell(page, temp);
+				setTransportCell(a, now_page, temp);
 				num = temp;
 			}
 			UnmapViewOfFile(page->start);
 			page = openMyPage(a, num);
 			now = (struct table_data*)page->my_page_start;
+			now_page = num;
 		}
 	}
 
@@ -102,6 +104,7 @@ int getTableData(struct FileMapping* a, int num, struct table_data* table) {
 				table->page_num = now->page_num;
 				table->row_size = now->row_size;
 				table->table_num = now->table_num;
+				table->rows_count = now->rows_count;
 				while_flag = 1;
 				break;
 			}
@@ -139,6 +142,7 @@ int modifyTableData(struct FileMapping* a, int num, struct table_data* table) {
 				now->page_num = table->page_num;
 				now->row_size = table->row_size;
 				now->table_num = table->table_num;
+				now->rows_count = table->rows_count;
 				while_flag = 1;
 				break;
 			}
@@ -197,11 +201,11 @@ int addRawToTable(struct FileMapping* a, int num, struct cell raw[], int el_in_a
 			int first_table_page = table.page_num;
 			struct map_file_of_view* page = openMyPage(a, first_table_page); // открыли первую страницу таблицы
 			int second_page = getTransportCell(page); // получили значение перехода в первой странице таблицы 
-			setTransportCell(page, new_page_num); // теперь наша первая страница переходит на новую
+			setTransportCell(a, first_table_page, new_page_num); // теперь наша первая страница переходит на новую
 			UnmapViewOfFile(page->start);
 
 			page = openMyPage(a, new_page_num);
-			setTransportCell(page, second_page);
+			setTransportCell(a, new_page_num, second_page);
 			fillerDataToPage(a, new_page_num, 0, raw, el_in_array);
 
 		}
@@ -211,6 +215,7 @@ int addRawToTable(struct FileMapping* a, int num, struct cell raw[], int el_in_a
 		}
 		table.rows_count++;
 		modifyTableData(a, table.table_num, &table);
+		//free(&table);
 	}
 	return return_value;
 }
@@ -219,7 +224,7 @@ int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num) {
 	struct table_data table = { .table_num = table_num };
 	getTableData(a, table_num, &table);
 	int return_value = 0;
-	if (raw_num > table.rows_count) {
+	if (0) {
 		return_value = -1;
 	}
 	else {
@@ -239,6 +244,7 @@ int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num) {
 					while_flag = 1;
 					break;
 				}
+				now_cell++;
 			}
 			if (while_flag)
 				continue;
@@ -254,6 +260,7 @@ int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num) {
 			page = openMyPage(a, num);
 			now_cell = (struct table_data*)page->my_page_start;
 		}
+		UnmapViewOfFile(page->start);
 
 		if (our_raw_page_start != -1 && our_raw_cell_start != -1) {
 			struct map_file_of_view* page = openMyPage(a, our_raw_page_start);
@@ -263,7 +270,7 @@ int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num) {
 			int our_raw_page_now = our_raw_page_start;
 			while (!while_flag) {
 				for (int j = our_raw_cell_start; j < cellsOnList; j++) {
-					if (now_cell->flag != RAW_NUM || (now_cell->flag == RAW_NUM && now_cell->int_data == raw_num)) {
+					if ((now_cell->flag != RAW_NUM && now_cell->flag != TEMPEST) || (now_cell->flag == RAW_NUM && now_cell->int_data == raw_num)) {
 						now_cell->flag = TEMPEST;
 					}
 					else {
@@ -299,7 +306,7 @@ int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num) {
 			if (our_raw_page_now != our_raw_page_start) {
 				page = openMyPage(a, our_raw_page_start);
 				pageCompresser(a, our_raw_page_now);
-				setTransportCell(page, our_raw_page_now);
+				setTransportCell(a, our_raw_page_start, our_raw_page_now);
 			}
 			
 		}

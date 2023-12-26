@@ -1,6 +1,8 @@
 #include <stdio.h>  
+#include <stdlib.h>  
 #include "fileWork.h"
 #include "tablework.h"
+#include <time.h>
 
 int main(void) {                             
 
@@ -16,6 +18,9 @@ int main(void) {
     SYSTEM_INFO s;
     GetSystemInfo(&s);
     struct FileMapping* myMapping = openMapping(filename);
+
+
+
 
 
     /*unsigned char* dataPtr = (unsigned char*)MapViewOfFile(myMypping->hMapping,
@@ -44,20 +49,52 @@ int main(void) {
     */
 
     for (int i = 1; i <= 3; i++) {
-        struct table_data temp_table_data = {.table_num=i, .row_size=i};
+        struct table_data temp_table_data = {.table_num=i, .row_size= i };
         initTable(myMapping, &temp_table_data);
     }
-    int p1 = getFreePage(myMapping);
- 
-    struct map_file_of_view* TEST_PAGE = openMyPage(myMapping, p1);
-    getTransportCell(TEST_PAGE);
-    setTransportCell(TEST_PAGE, p1);
+    //int p1 = getFreePage(myMapping);
 
 
-    deleteTable(myMapping, 3);
+    //deleteTable(myMapping, 3);
     //int p2 = getFreePage(myMapping);
 
-    struct table_data table1_info = {.table_num=1};
+
+
+    for (int z = 0; z < 40; z++) {
+        // для хранения времени выполнения кода
+        double time_spent = 0.0;
+        clock_t begin = clock();
+
+        for (int i = 0; i < 500; i++) {
+            int num = abs(rand()) % 3 + 1;
+
+            struct table_data table_info = { .table_num = num };
+            int status1 = getTableData(myMapping, num, &table_info);
+
+            struct cell* raw_to_table = malloc(sizeof(struct cell) * (num + 1)); // 1
+
+            raw_to_table[0].flag = RAW_NUM;
+            raw_to_table[0].type_of = INT_MYTYPE;
+            raw_to_table[0].int_data = table_info.rows_count + 1;
+
+            for (int j = 1; j <= table_info.row_size; j++) {
+                raw_to_table[j].type_of = INT_MYTYPE;
+                int chislo = rand() % 1000 + 1;
+                raw_to_table[j].int_data = chislo;
+            }
+            addRawToTable(myMapping, num, raw_to_table, num + 1);
+
+            free(raw_to_table);
+        }
+        clock_t end = clock();
+
+        time_spent += (double)(end - begin) / CLOCKS_PER_SEC;
+
+        printf("The elapsed time is %f seconds\n", time_spent);
+    }
+
+
+    /*struct table_data table1_info = {.table_num = 1};
     int status1 = getTableData(myMapping, 1, &table1_info);
 
 
@@ -118,6 +155,9 @@ int main(void) {
 
     addRawToTable(myMapping, 2, raw1_to_table2, 3);
     addRawToTable(myMapping, 2, raw2_to_table2, 3);
+       */
+    deleteRawFromTable(myMapping, 1, 2);
+    deleteRawFromTable(myMapping, 2, 1);
 
     return 0;                       
 }                                   
