@@ -38,7 +38,7 @@ int setTransportCell(struct FileMapping* a, int page_num, int value);
 
 int pageCompresser(struct FileMapping* Maping, int page_num);
 
-struct map_file_of_view* openMyPage(struct FileMapping* a, int num);
+void openMyPage(struct FileMapping* a, int num, struct map_file_of_view* ret);
 unsigned char* setMyPageFree(struct FileMapping* a, int num);
 
 int countFreeCellsOnPage(struct FileMapping* a, int page_num);

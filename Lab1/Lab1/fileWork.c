@@ -85,21 +85,20 @@ void initFile(char* fileName) {
 
 }
 
-struct map_file_of_view* openMyPage(struct FileMapping* a, int num) {
-	struct map_file_of_view ret;
+void openMyPage(struct FileMapping* a, int num, struct map_file_of_view* ret) {
 	size_t start = (num - 1) * list_size / windows_page_size;
 	size_t delta = (num - 1) * list_size - start * windows_page_size;
-	ret.start = MapViewOfFile(a->hMapping, FILE_MAP_ALL_ACCESS, 0, start * windows_page_size, delta + list_size);
+	ret->start = MapViewOfFile(a->hMapping, FILE_MAP_ALL_ACCESS, 0, start * windows_page_size, delta + list_size);
 	DWORD temp = GetLastError();
-	ret.my_page_start = ret.start + delta;
-	return &ret;
+	ret->my_page_start = ret->start + delta;
 	// доделать старшее слово
 }
 
 int countFreeCellsOnPage(struct FileMapping* a, int page_num) {
-	struct map_file_of_view* page = openMyPage(a, page_num);
+	struct map_file_of_view page;
+	openMyPage(a, page_num, &page);
 	int ret = 0;
-	struct cell* now = (struct cell*)page->my_page_start;
+	struct cell* now = (struct cell*)page.my_page_start;
 	enum cell_flag previous_flag = -1;
 	for (int i = 0; i < cellsOnList - 1; i++) {
 		if (now->flag == TEMPEST && previous_flag == STRING_CONTINUE) {
@@ -111,7 +110,7 @@ int countFreeCellsOnPage(struct FileMapping* a, int page_num) {
 		}
 		now++;
 	}
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 	return ret;
 }
 
@@ -123,11 +122,12 @@ int getTransportCell(struct map_file_of_view* page) {
 }
 
 int setTransportCell(struct FileMapping* a, int page_num, int value) {
-	struct map_file_of_view* page = openMyPage(a, page_num);
-	struct cell* ret = (struct cell*)page->my_page_start;
+	struct map_file_of_view page;
+	openMyPage(a, page_num, &page);
+	struct cell* ret = (struct cell*)page.my_page_start;
 	ret += cellsOnList;
 	ret->int_data = value;
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 	return 0;
 }
 
@@ -142,8 +142,9 @@ int openTableEl(struct map_file_of_view* page, struct map_file_of_view* page_cop
 }
 
 unsigned char* setMyPageFree(struct FileMapping* a, int num) {
-	struct map_file_of_view* page = openMyPage(a, num);
-	struct cell* empty = (struct cell*)page->my_page_start;
+	struct map_file_of_view page;
+	openMyPage(a, num, &page);
+	struct cell* empty = (struct cell*)page.my_page_start;
 	for (int i = 0; i < cellsOnList; i++) {
 		empty->flag = TEMPEST;
 		empty++;
@@ -151,37 +152,39 @@ unsigned char* setMyPageFree(struct FileMapping* a, int num) {
 
 	empty->flag = TRANSPORT;
 	empty->int_data = -1;
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 }
 
 unsigned char* setTableStartOnPage(struct FileMapping* a, int num) {
-	struct map_file_of_view* page = openMyPage(a, num);
-	struct cell* now_cell = (struct cell*)page->my_page_start;
+	struct map_file_of_view page;
+	openMyPage(a, num, &page);
+	struct cell* now_cell = (struct cell*)page.my_page_start;
 	//now_cell->flag = TABLE_START;
 
 	now_cell += cellsOnList;
 	now_cell->flag = TRANSPORT;
 	now_cell->int_data = -1;
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 }
 
 
 int registerFreePage(struct FileMapping* Maping, int num) {
-	struct map_file_of_view* page = openMyPage(Maping, free_block_start);
-	struct cell* now = (struct cell*)page->my_page_start;
+	struct map_file_of_view page;
+	openMyPage(Maping, free_block_start, &page);
+	struct cell* now = (struct cell*)page.my_page_start;
 	while (1) {
 		if (now->flag == TRANSPORT) {
 			if (now->int_data == -1) {
-				struct cell* deleted_cell = (struct cell*)page->my_page_start;
+				struct cell* deleted_cell = (struct cell*)page.my_page_start;
 				deleted_cell->flag = TEMPEST;
 				int temp_num = deleted_cell->int_data;
 				now->type_of = INT_MYTYPE;
 				now->int_data = temp_num;
 			}
 			int temp = now->int_data;
-			UnmapViewOfFile(page->start);
-			page = openMyPage(Maping, temp);
-			now = (struct cell*)page->my_page_start;
+			UnmapViewOfFile(page.start);
+			openMyPage(Maping, temp, &page);
+			now = (struct cell*)page.my_page_start;
 			continue;
 		}
 		if (now->flag != FREE_PAGE_DATA) {
@@ -193,7 +196,7 @@ int registerFreePage(struct FileMapping* Maping, int num) {
 		now += 1;
 	}
 
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 }
 
 
@@ -226,8 +229,9 @@ int getListCountFromMaping(struct FileMapping* Maping) {
 
 
 int getFreePage(struct FileMapping* Maping){
-	struct map_file_of_view* page = openMyPage(Maping, free_block_start);
-	struct cell* now = (struct cell*)page->my_page_start;
+	struct map_file_of_view page;
+	openMyPage(Maping, free_block_start, &page);
+	struct cell* now = (struct cell*)page.my_page_start;
 	while (1) {
 		if (now->flag == TRANSPORT) {
 			if (now->int_data == -1) {
@@ -238,9 +242,9 @@ int getFreePage(struct FileMapping* Maping){
 			}
 			else {
 				int temp = now->int_data;
-				UnmapViewOfFile(page->start);
-				page = openMyPage(Maping, temp);
-				now = (struct cell*)page->my_page_start;
+				UnmapViewOfFile(page.start);
+				openMyPage(Maping, temp, &page);
+				now = (struct cell*)page.my_page_start;
 				continue;
 			}
 		}
@@ -250,7 +254,7 @@ int getFreePage(struct FileMapping* Maping){
 		}
 		now += 1;
 	}
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 	return 0;
 }
 
@@ -258,8 +262,9 @@ int getFreePage(struct FileMapping* Maping){
 int fillerDataToPage(struct FileMapping* Maping, int page_num, int cell_num, struct cell raw[], int el_in_array) {
 	int raw_size = el_in_array;
 	int now_page_num = page_num;
-	struct map_file_of_view* page = openMyPage(Maping, page_num);
-	struct cell* now_cell = (struct cell*)page->my_page_start;
+	struct map_file_of_view page;
+	openMyPage(Maping, page_num, &page);
+	struct cell* now_cell = (struct cell*)page.my_page_start;
 	now_cell += cell_num;
 	int now_cell_num = cell_num;
 	int counter = 0;
@@ -279,30 +284,31 @@ int fillerDataToPage(struct FileMapping* Maping, int page_num, int cell_num, str
 			break;
 		// сейчас в page хранится номер следующей страницы, будущая третья
 		int next_page_num = getFreePage(Maping); // будущая вторая
-		int second_page = getTransportCell(page);
+		int second_page = getTransportCell(&page);
 		setTransportCell(Maping, now_page_num, next_page_num);
-		UnmapViewOfFile(page->start);
+		UnmapViewOfFile(page.start);
 
 
 		setTransportCell(Maping, next_page_num, second_page);
-		page = openMyPage(Maping, next_page_num);
+		openMyPage(Maping, next_page_num, &page);
 		now_page_num = next_page_num;
-		now_cell = (struct cell*)page->my_page_start;
+		now_cell = (struct cell*)page.my_page_start;
 		now_cell_num = 0;
 	}
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 	return now_page_num;
 }
 
 int get_first_free_cell(struct FileMapping* Maping, int page_num) {
-	struct map_file_of_view* page = openMyPage(Maping, page_num);
-	struct cell* now_cell = (struct cell*)page->my_page_start;
+	struct map_file_of_view page;
+	openMyPage(Maping, page_num, &page);
+	struct cell* now_cell = (struct cell*)page.my_page_start;
 	for (int i = 0; i < cellsOnList; i++) {
 		if (now_cell->flag == TEMPEST)
 			return i;
 		now_cell++;
 	}
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 	return -1;
 }
 
@@ -334,8 +340,9 @@ int countCellsInRaw(struct cell raw[], int el_in_array) {
 int pageCompresser(struct FileMapping* Maping, int page_num) {
 	struct cell arr[cellsOnList];
 	int cnt = 0;
-	struct map_file_of_view* page = openMyPage(Maping, page_num);
-	struct cell* now_cell = (struct cell*)page->my_page_start;
+	struct map_file_of_view page;
+	openMyPage(Maping, page_num, &page);
+	struct cell* now_cell = (struct cell*)page.my_page_start;
 	for (int i = 0; i < cellsOnList; i++) {
 		if (now_cell->flag != TEMPEST) {
 			arr[cnt].flag = now_cell->flag;
@@ -348,7 +355,7 @@ int pageCompresser(struct FileMapping* Maping, int page_num) {
 		}
 		now_cell++;
 	}
-	now_cell = (struct cell*)page->my_page_start;
+	now_cell = (struct cell*)page.my_page_start;
 	for (int i = 0; i < cellsOnList; i++) {
 		if (i < cnt) {
 			now_cell->flag = arr[i].flag;
@@ -362,6 +369,6 @@ int pageCompresser(struct FileMapping* Maping, int page_num) {
 			now_cell->flag = TEMPEST;
 		}
 	}
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 	return cnt;
 }

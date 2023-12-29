@@ -2,8 +2,9 @@
 #include <stdio.h>
 
 int initTable(struct FileMapping* a, struct table_data* new_table) {
-	struct map_file_of_view* page = openMyPage(a, table_block_start);
-	struct table_data* now = (struct table_data*) page->my_page_start;
+	struct map_file_of_view page;
+	openMyPage(a, table_block_start, &page);
+	struct table_data* now = (struct table_data*) page.my_page_start;
 	int while_flag = 0;
 	int return_value = -1;
 	int now_page = table_block_start;
@@ -30,27 +31,28 @@ int initTable(struct FileMapping* a, struct table_data* new_table) {
 			break;
 		}
 		else {
-			int num = getTransportCell(page);
+			int num = getTransportCell(&page);
 			if (num == -1) {
 				int temp = getFreePage(a);
 				setTransportCell(a, now_page, temp);
 				num = temp;
 			}
-			UnmapViewOfFile(page->start);
-			page = openMyPage(a, num);
-			now = (struct table_data*)page->my_page_start;
+			UnmapViewOfFile(page.start);
+			openMyPage(a, num, &page);
+			now = (struct table_data*)page.my_page_start;
 			now_page = num;
 		}
 	}
 
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 	return return_value;
 }
 
 
 int deleteTable(struct FileMapping* a, int num) {
-	struct map_file_of_view* page = openMyPage(a, table_block_start);
-	struct table_data* now = (struct table_data*)page->my_page_start;
+	struct map_file_of_view page;
+	openMyPage(a, table_block_start, &page);
+	struct table_data* now = (struct table_data*)page.my_page_start;
 	int while_flag = 0;
 	int list_to_delete = -1;
 	int ret_value = 0;
@@ -68,34 +70,36 @@ int deleteTable(struct FileMapping* a, int num) {
 			break;
 		}
 		else {
-			int num = getTransportCell(page);
+			int num = getTransportCell(&page);
 			if (num == -1) {
 				ret_value = 1;
 				break;
 			}
-			UnmapViewOfFile(page->start);
-			page = openMyPage(a, num);
-			now = (struct table_data*)page->my_page_start;
+			UnmapViewOfFile(page.start);
+			openMyPage(a, num, &page);
+			now = (struct table_data*)page.my_page_start;
 		}
 	}
 
 	while (list_to_delete != -1) {
-		struct map_file_of_view* deleted_list = openMyPage(a, table_block_start);
-		int temp = getTransportCell(deleted_list);
-		UnmapViewOfFile(deleted_list->start);
+		struct map_file_of_view deleted_list;
+		openMyPage(a, table_block_start, &deleted_list);
+		int temp = getTransportCell(&deleted_list);
+		UnmapViewOfFile(deleted_list.start);
 
 		setMyPageFree(a, list_to_delete);
 		registerFreePage(a, list_to_delete);
 		list_to_delete = temp;
 	}
 	
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 	return ret_value;
 }
 
 int getTableData(struct FileMapping* a, int num, struct table_data* table) {
-	struct map_file_of_view* page = openMyPage(a, table_block_start);
-	struct table_data* now = (struct table_data*)page->my_page_start;
+	struct map_file_of_view page;
+	openMyPage(a, table_block_start, &page);
+	struct table_data* now = (struct table_data*)page.my_page_start;
 	int while_flag = 0;
 	int list_to_delete = -1;
 	int ret_value = 0;
@@ -117,24 +121,25 @@ int getTableData(struct FileMapping* a, int num, struct table_data* table) {
 			break;
 		}
 		else {
-			int num = getTransportCell(page);
+			int num = getTransportCell(&page);
 			if (num == -1) {
 				ret_value = -1;
 				break;
 			}
-			UnmapViewOfFile(page->start);
-			page = openMyPage(a, num);
-			now = (struct table_data*)page->my_page_start;
+			UnmapViewOfFile(page.start);
+			openMyPage(a, num, &page);
+			now = (struct table_data*)page.my_page_start;
 		}
 	}
 
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 	return ret_value;
 }
 
 int modifyTableData(struct FileMapping* a, int num, struct table_data* table) {
-	struct map_file_of_view* page = openMyPage(a, table_block_start);
-	struct table_data* now = (struct table_data*)page->my_page_start;
+	struct map_file_of_view page;
+	openMyPage(a, table_block_start, &page);
+	struct table_data* now = (struct table_data*)page.my_page_start;
 	int while_flag = 0;
 	int list_to_delete = -1;
 	int ret_value = 0;
@@ -156,18 +161,18 @@ int modifyTableData(struct FileMapping* a, int num, struct table_data* table) {
 			break;
 		}
 		else {
-			int num = getTransportCell(page);
+			int num = getTransportCell(&page);
 			if (num == -1) {
 				ret_value = -1;
 				break;
 			}
-			UnmapViewOfFile(page->start);
-			page = openMyPage(a, num);
-			now = (struct table_data*)page->my_page_start;
+			UnmapViewOfFile(page.start);
+			openMyPage(a, num, &page);
+			now = (struct table_data*)page.my_page_start;
 		}
 	}
 
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 	return ret_value;
 }
 
@@ -219,8 +224,9 @@ int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num) {
 	}
 	else {
 		int now_page = table.start_page_num;
-		struct map_file_of_view* page = openMyPage(a, now_page); // открыли первую страницу таблицы
-		struct cell* now_cell = (struct cell*)page->my_page_start;
+		struct map_file_of_view page;
+		openMyPage(a, now_page, &page); // открыли первую страницу таблицы
+		struct cell* now_cell = (struct cell*)page.my_page_start;
 
 		int our_raw_page_start = -1;
 		int our_raw_cell_start = -1;
@@ -240,21 +246,22 @@ int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num) {
 				continue;
 
 
-			int num = getTransportCell(page);
+			int num = getTransportCell(&page);
 			if (num == -1) {
 				return_value = -1;
 				while_flag = 1;
 				continue;;
 			}
-			UnmapViewOfFile(page->start);
-			page = openMyPage(a, num);
-			now_cell = (struct table_data*)page->my_page_start;
+			UnmapViewOfFile(page.start);
+			openMyPage(a, num, &page);
+			now_cell = (struct table_data*)page.my_page_start;
 		}
-		UnmapViewOfFile(page->start);
+		UnmapViewOfFile(page.start);
 
 		if (our_raw_page_start != -1 && our_raw_cell_start != -1) {
-			struct map_file_of_view* page = openMyPage(a, our_raw_page_start);
-			struct cell* now_cell = (struct cell*)page->my_page_start;
+			struct map_file_of_view page;
+			openMyPage(a, our_raw_page_start, &page);
+			struct cell* now_cell = (struct cell*)page.my_page_start;
 			now_cell += our_raw_cell_start;
 			while_flag = 0;
 			int our_raw_page_now = our_raw_page_start;
@@ -273,38 +280,38 @@ int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num) {
 				if (while_flag)
 					continue;
 
-				int num = getTransportCell(page);
+				int num = getTransportCell(&page);
 				if (num == -1) {
 					while_flag = 1;
 					continue;
 				}
-				UnmapViewOfFile(page->start);
+				UnmapViewOfFile(page.start);
 
 				if (our_raw_page_now != our_raw_page_start) { // пометить свободной
 					setMyPageFree(a, our_raw_page_now);
 					registerFreePage(a, our_raw_page_now);
 				}
 
-				page = openMyPage(a, num);
+				openMyPage(a, num, &page);
 				our_raw_page_now = num;
-				now_cell = (struct table_data*)page->my_page_start;
+				now_cell = (struct table_data*)page.my_page_start;
 				our_raw_cell_start = 0;
 			}
-			UnmapViewOfFile(page->start);
+			UnmapViewOfFile(page.start);
 
 			int not_free_in_raw_page_start = pageCompresser(a, our_raw_page_start);
 
 			if (our_raw_page_now != our_raw_page_start) {
-				page = openMyPage(a, our_raw_page_start);
+				openMyPage(a, our_raw_page_start, &page);
 				pageCompresser(a, our_raw_page_now);
 				setTransportCell(a, our_raw_page_start, our_raw_page_now);
-				UnmapViewOfFile(page->start);
+				UnmapViewOfFile(page.start);
 			}
 			if (not_free_in_raw_page_start == 0) {
 				if (our_raw_page_start == table.start_page_num) {
-					page = openMyPage(a, our_raw_page_start);
-					int new_table_page_start = getTransportCell(page);
-					UnmapViewOfFile(page->start);
+					openMyPage(a, our_raw_page_start, &page);
+					int new_table_page_start = getTransportCell(&page);
+					UnmapViewOfFile(page.start);
 					if (new_table_page_start != -1) {
 						setMyPageFree(a, our_raw_page_start);
 						registerFreePage(a, our_raw_page_start);
@@ -313,20 +320,20 @@ int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num) {
 					}
 				}
 				else {
-					page = openMyPage(a, table.start_page_num);
+					openMyPage(a, table.start_page_num, &page);
 					int previous = table.start_page_num;
-					int next_page_in_table = getTransportCell(page);
+					int next_page_in_table = getTransportCell(&page);
 					while (next_page_in_table != our_raw_page_start) {
-						UnmapViewOfFile(page->start);
-						page = openMyPage(a, next_page_in_table);
+						UnmapViewOfFile(page.start);
+						openMyPage(a, next_page_in_table, &page);
 						previous = next_page_in_table;
-						next_page_in_table = getTransportCell(page);
+						next_page_in_table = getTransportCell(&page);
 					}
-					UnmapViewOfFile(page->start);
+					UnmapViewOfFile(page.start);
 
-					page = openMyPage(a, our_raw_page_start);
-					int new_table_page_start = getTransportCell(page);
-					UnmapViewOfFile(page->start);
+					openMyPage(a, our_raw_page_start, &page);
+					int new_table_page_start = getTransportCell(&page);
+					UnmapViewOfFile(page.start);
 					setMyPageFree(a, our_raw_page_start);
 					registerFreePage(a, our_raw_page_start);
 					setTransportCell(a, previous, new_table_page_start);
@@ -343,8 +350,9 @@ int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num) {
 int selectTableData(struct FileMapping* a, int table_num) {
 	struct table_data table = { .table_num = table_num };
 	getTableData(a, table_num, &table);
-	struct map_file_of_view* page = openMyPage(a, table.start_page_num);
-	struct cell* now = (struct cell*)page->my_page_start;
+	struct map_file_of_view page;
+	openMyPage(a, table.start_page_num, &page);
+	struct cell* now = (struct cell*)page.my_page_start;
 	
 	int end_flag = 1;
 	int cnt = 0;
@@ -389,11 +397,11 @@ int selectTableData(struct FileMapping* a, int table_num) {
 			end_flag = 0;
 			continue;
 		}
-		UnmapViewOfFile(page->start);
-		page = openMyPage(a, new_page_num);
-		now = (struct cell*)page->my_page_start;;
+		UnmapViewOfFile(page.start);
+		openMyPage(a, new_page_num, &page);
+		now = (struct cell*)page.my_page_start;;
 	}
-	UnmapViewOfFile(page->start);
+	UnmapViewOfFile(page.start);
 	return cnt;
 }
 

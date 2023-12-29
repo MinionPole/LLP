@@ -64,7 +64,6 @@ int main(void) {
     int startRaw[6] = {1, 1, 1, 1, 1, 1};
     for (int z = 0; z < 1000; z++) {
 
-
         for (int i = 0; i < 500; i++) {
 
             int num = abs(rand()) % 5 + 1;
@@ -101,6 +100,7 @@ int main(void) {
            // для хранения времени выполнения кода
            double time_spent = 0.0;
            clock_t begin = clock();
+
            for (int i = 0; i < 20; i++) {
                int num = rand() % sizesRaw[1] + 1;
                struct cell raw_to_table[4];
@@ -115,8 +115,11 @@ int main(void) {
                changeRaw(myMapping, 1, raw_to_table, 4);
            }
 
+                     
+
            clock_t end = clock();
            time_spent += (double)(end - begin) / CLOCKS_PER_SEC;
+
            printf("%d  ", sizesRaw[1]);
            printf("%f\n", time_spent);
 
