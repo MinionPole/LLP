@@ -1,5 +1,5 @@
 #pragma once
-#define string_data_size_in_cell 20
+#define string_data_size_in_cell 32
 enum cell_flag
 {
 	STRING_CONTINUE,        // показывает что данна€ €чейка хранит незаконченную строку и еЄ продолжение в следующей
@@ -38,7 +38,8 @@ enum table_flag
 
 struct table_data {
 	int table_num;
-	int page_num;
+	int start_page_num;
+	int	last_page_num;
 	int row_size;
 	int rows_count;
 	enum table_flag flag;

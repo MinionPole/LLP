@@ -11,7 +11,8 @@
 struct FileMapping {
 	HANDLE hFile;
 	HANDLE hMapping;
-	size_t fsize;
+	size_t lowSize;
+	size_t highSize;
 };
 
 struct map_file_of_view {
@@ -33,7 +34,7 @@ int registerFreePage(struct FileMapping* Maping, int num);
 int getFreePage(struct FileMapping* Maping);
 
 int getTransportCell(struct map_file_of_view* page);
-int setTransportCell(struct map_file_of_view* page, int x);
+int setTransportCell(struct FileMapping* a, int page_num, int value);
 
 int pageCompresser(struct FileMapping* Maping, int page_num);
 

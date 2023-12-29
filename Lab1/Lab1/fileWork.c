@@ -33,7 +33,8 @@ struct FileMapping* openMapping(char* fileName) {
 
 	mapping->hFile = hFile;
 	mapping->hMapping = hMapping;
-	mapping->fsize = (size_t)dwLowSize;
+	mapping->lowSize = (size_t)dwLowSize;
+	mapping->highSize = (size_t)dwhighSize;
 
 	return mapping;
 }
@@ -54,10 +55,12 @@ void updateMapping(struct FileMapping* oldMaping) {
 		CloseHandle(oldMaping);
 		return NULL;
 	}
+
 	CloseHandle(oldMaping->hMapping);
 
 	oldMaping->hMapping = hMapping;
-	oldMaping->fsize = (size_t)dwLowSize;
+	oldMaping->lowSize = (size_t)dwLowSize;
+	oldMaping->highSize = (size_t)dwhighSize;
 }
 
 void freeMapping(struct FileMapping* Maping) {
@@ -86,7 +89,7 @@ struct map_file_of_view* openMyPage(struct FileMapping* a, int num) {
 	struct map_file_of_view ret;
 	size_t start = (num - 1) * list_size / windows_page_size;
 	size_t delta = (num - 1) * list_size - start * windows_page_size;
-	ret.start=MapViewOfFile(a->hMapping, FILE_MAP_ALL_ACCESS, 0, start * windows_page_size, delta + list_size);
+	ret.start = MapViewOfFile(a->hMapping, FILE_MAP_ALL_ACCESS, 0, start * windows_page_size, delta + list_size);
 	DWORD temp = GetLastError();
 	ret.my_page_start = ret.start + delta;
 	return &ret;
@@ -154,7 +157,7 @@ unsigned char* setMyPageFree(struct FileMapping* a, int num) {
 unsigned char* setTableStartOnPage(struct FileMapping* a, int num) {
 	struct map_file_of_view* page = openMyPage(a, num);
 	struct cell* now_cell = (struct cell*)page->my_page_start;
-	now_cell->flag = TABLE_START;
+	//now_cell->flag = TABLE_START;
 
 	now_cell += cellsOnList;
 	now_cell->flag = TRANSPORT;
@@ -218,7 +221,7 @@ void addNewRegisteredListFromMapping(struct FileMapping* Maping) {
 
 
 int getListCountFromMaping(struct FileMapping* Maping) {
-	return Maping->fsize / list_size;
+	return Maping->lowSize / list_size;
 }
 
 
@@ -247,7 +250,8 @@ int getFreePage(struct FileMapping* Maping){
 		}
 		now += 1;
 	}
-
+	UnmapViewOfFile(page->start);
+	return 0;
 }
 
 
@@ -286,6 +290,8 @@ int fillerDataToPage(struct FileMapping* Maping, int page_num, int cell_num, str
 		now_cell = (struct cell*)page->my_page_start;
 		now_cell_num = 0;
 	}
+	UnmapViewOfFile(page->start);
+	return now_page_num;
 }
 
 int get_first_free_cell(struct FileMapping* Maping, int page_num) {
@@ -296,6 +302,7 @@ int get_first_free_cell(struct FileMapping* Maping, int page_num) {
 			return i;
 		now_cell++;
 	}
+	UnmapViewOfFile(page->start);
 	return -1;
 }
 
@@ -344,18 +351,17 @@ int pageCompresser(struct FileMapping* Maping, int page_num) {
 	now_cell = (struct cell*)page->my_page_start;
 	for (int i = 0; i < cellsOnList; i++) {
 		if (i < cnt) {
-			now_cell->flag = arr[cnt].flag;
-			now_cell->double_data =arr[cnt].double_data;
-			now_cell->int_data = arr[cnt].int_data;
-			now_cell->type_of = arr[cnt].type_of;
+			now_cell->flag = arr[i].flag;
+			now_cell->double_data =arr[i].double_data;
+			now_cell->int_data = arr[i].int_data;
+			now_cell->type_of = arr[i].type_of;
 			for (int j = 0; j < string_data_size_in_cell; j++)
-				now_cell->string_data[j] = arr[cnt].string_data[j];
-			cnt++;
+				now_cell->string_data[j] = arr[i].string_data[j];
 		}
 		else {
 			now_cell->flag = TEMPEST;
 		}
 	}
-
-	
+	UnmapViewOfFile(page->start);
+	return cnt;
 }

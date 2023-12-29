@@ -29,9 +29,6 @@
     <ClInclude Include="structures.h" />
     <ClInclude Include="tablework.h" />
   </ItemGroup>
-  <ItemGroup>
-    <Text Include="init.txt" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

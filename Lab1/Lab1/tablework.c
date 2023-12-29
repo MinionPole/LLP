@@ -1,4 +1,5 @@
 #include "tablework.h"
+#include <stdio.h>
 
 int initTable(struct FileMapping* a, struct table_data* new_table) {
 	struct map_file_of_view* page = openMyPage(a, table_block_start);
@@ -13,7 +14,8 @@ int initTable(struct FileMapping* a, struct table_data* new_table) {
 				now->rows_count = 0;
 
 				int num = getFreePage(a);
-				now->page_num = num;
+				now->start_page_num = num;
+				now->last_page_num = num;
 				setTableStartOnPage(a, num);
 				return_value = num;
 
@@ -56,7 +58,7 @@ int deleteTable(struct FileMapping* a, int num) {
 		for (int i = 0; i < tableStructOnList; i++) {
 			if (now->table_num == num) {
 				now->flag = TABLE_DELETED;
-				list_to_delete = now->page_num;
+				list_to_delete = now->start_page_num;
 				while_flag = 1;
 				break;
 			}
@@ -101,7 +103,8 @@ int getTableData(struct FileMapping* a, int num, struct table_data* table) {
 		for (int i = 0; i < tableStructOnList; i++) {
 			if (now->table_num == num && now->flag == TABLE_ACTIVE) {
 				table->flag = now->flag;
-				table->page_num = now->page_num;
+				table->start_page_num = now->start_page_num;
+				table->last_page_num = now->last_page_num;
 				table->row_size = now->row_size;
 				table->table_num = now->table_num;
 				table->rows_count = now->rows_count;
@@ -139,7 +142,8 @@ int modifyTableData(struct FileMapping* a, int num, struct table_data* table) {
 		for (int i = 0; i < tableStructOnList; i++) {
 			if (now->table_num == num && now->flag == TABLE_ACTIVE) {
 				now->flag = table->flag;
-				now->page_num = table->page_num;
+				now->start_page_num = table->start_page_num;
+				now->last_page_num = table->last_page_num;
 				now->row_size = table->row_size;
 				now->table_num = table->table_num;
 				now->rows_count = table->rows_count;
@@ -169,9 +173,9 @@ int modifyTableData(struct FileMapping* a, int num, struct table_data* table) {
 
 
 //самое сложное начинается здесь
-int addRawToTable(struct FileMapping* a, int num, struct cell raw[], int el_in_array) {
-	struct table_data table = { .table_num = num };
-	getTableData(a, num, &table);
+int addRawToTable(struct FileMapping* a, int table_num, struct cell raw[], int el_in_array) {
+	struct table_data table = { .table_num = table_num };
+	getTableData(a, table_num, &table);
 
 	int in_raw = countCellsInRaw(raw, el_in_array);
 	int return_value = 0;
@@ -182,38 +186,24 @@ int addRawToTable(struct FileMapping* a, int num, struct cell raw[], int el_in_a
 		int cells_required = el_in_array;
 
 		int page_start = -1;
-		int now_page = table.page_num;
+		int now_page = table.last_page_num;
 
-		while (now_page != -1 && cells_required < cellsOnList) {
-
-			int count = countFreeCellsOnPage(a, now_page);
-			if (count >= cells_required) {
-				page_start = now_page;
-				break;
-			}
-			struct map_file_of_view* page = openMyPage(a, now_page);
-			now_page = getTransportCell(page);
-			UnmapViewOfFile(page->start);
+		int count = countFreeCellsOnPage(a, now_page);
+		if (count >= cells_required) {
+			page_start = now_page;
 		}
 
 		if (page_start == -1) { // нужна новая страница под данную запись
 			int new_page_num = getFreePage(a); // получили номер страницы, где мы будем хранить информацию
-			int first_table_page = table.page_num;
-			struct map_file_of_view* page = openMyPage(a, first_table_page); // открыли первую страницу таблицы
-			int second_page = getTransportCell(page); // получили значение перехода в первой странице таблицы 
-			setTransportCell(a, first_table_page, new_page_num); // теперь наша первая страница переходит на новую
-			UnmapViewOfFile(page->start);
-
-			page = openMyPage(a, new_page_num);
-			setTransportCell(a, new_page_num, second_page);
-			fillerDataToPage(a, new_page_num, 0, raw, el_in_array);
-
+			int last_table_page = table.last_page_num;
+			setTransportCell(a, last_table_page, new_page_num); // теперь наша первая страница переходит на новую
+			page_start = new_page_num;
 		}
-		else { // значит знаем куда писать
-			int find_first_free = get_first_free_cell(a, page_start);
-			fillerDataToPage(a, page_start, find_first_free, raw, el_in_array);
-		}
-		table.rows_count++;
+
+		int find_first_free = get_first_free_cell(a, page_start);
+		int new_last_page = fillerDataToPage(a, page_start, find_first_free, raw, el_in_array);
+		table.last_page_num = new_last_page;
+		//table.rows_count++;
 		modifyTableData(a, table.table_num, &table);
 		//free(&table);
 	}
@@ -228,7 +218,7 @@ int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num) {
 		return_value = -1;
 	}
 	else {
-		int now_page = table.page_num;
+		int now_page = table.start_page_num;
 		struct map_file_of_view* page = openMyPage(a, now_page); // открыли первую страницу таблицы
 		struct cell* now_cell = (struct cell*)page->my_page_start;
 
@@ -302,15 +292,112 @@ int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num) {
 			}
 			UnmapViewOfFile(page->start);
 
-			pageCompresser(a, our_raw_page_start);
+			int not_free_in_raw_page_start = pageCompresser(a, our_raw_page_start);
+
 			if (our_raw_page_now != our_raw_page_start) {
 				page = openMyPage(a, our_raw_page_start);
 				pageCompresser(a, our_raw_page_now);
 				setTransportCell(a, our_raw_page_start, our_raw_page_now);
+				UnmapViewOfFile(page->start);
+			}
+			if (not_free_in_raw_page_start == 0) {
+				if (our_raw_page_start == table.start_page_num) {
+					page = openMyPage(a, our_raw_page_start);
+					int new_table_page_start = getTransportCell(page);
+					UnmapViewOfFile(page->start);
+					if (new_table_page_start != -1) {
+						setMyPageFree(a, our_raw_page_start);
+						registerFreePage(a, our_raw_page_start);
+						table.start_page_num = new_table_page_start;
+						modifyTableData(a, table_num, &table);
+					}
+				}
+				else {
+					page = openMyPage(a, table.start_page_num);
+					int previous = table.start_page_num;
+					int next_page_in_table = getTransportCell(page);
+					while (next_page_in_table != our_raw_page_start) {
+						UnmapViewOfFile(page->start);
+						page = openMyPage(a, next_page_in_table);
+						previous = next_page_in_table;
+						next_page_in_table = getTransportCell(page);
+					}
+					UnmapViewOfFile(page->start);
+
+					page = openMyPage(a, our_raw_page_start);
+					int new_table_page_start = getTransportCell(page);
+					UnmapViewOfFile(page->start);
+					setMyPageFree(a, our_raw_page_start);
+					registerFreePage(a, our_raw_page_start);
+					setTransportCell(a, previous, new_table_page_start);
+				}
 			}
 			
 		}
 
 	}
 	return return_value;
+}
+
+
+int selectTableData(struct FileMapping* a, int table_num) {
+	struct table_data table = { .table_num = table_num };
+	getTableData(a, table_num, &table);
+	struct map_file_of_view* page = openMyPage(a, table.start_page_num);
+	struct cell* now = (struct cell*)page->my_page_start;
+	
+	int end_flag = 1;
+	int cnt = 0;
+	while (end_flag) {
+		for (int i = 0; i < cellsOnList; i++, now++) {
+			if (now->flag == RAW_NUM) {
+				//printf("%s", "\n");
+				cnt++;
+				continue;
+			}
+			if (now->flag == TABLE_START) {
+				continue;
+			}
+			if (now->flag == STRING_END) {
+				for (int j = 0; j < string_data_size_in_cell; j++) {
+					if (now->string_data[j] == '\0') {
+						break;
+					}
+					//printf("%c", now[j]);
+				}
+				//printf("%s", " ");
+				continue;
+			}
+			if (now->flag == STRING_CONTINUE) {
+				for (int j = 0; j < string_data_size_in_cell; j++) {
+					//printf("%c", now[j]);
+				}
+				continue;
+			}
+
+			if (now->flag != TEMPEST) {
+				if (now->type_of == INT_MYTYPE) {
+					//printf("%d ", now->int_data);
+				}
+				else {
+					//printf("%f ", now->double_data);
+				}
+			}
+		}
+		int new_page_num = now->int_data;
+		if (new_page_num == -1) {
+			end_flag = 0;
+			continue;
+		}
+		UnmapViewOfFile(page->start);
+		page = openMyPage(a, new_page_num);
+		now = (struct cell*)page->my_page_start;;
+	}
+	UnmapViewOfFile(page->start);
+	return cnt;
+}
+
+int changeRaw(struct FileMapping* a, int table_num, struct cell value[], int el_in_array) {
+	deleteRawFromTable(a, table_num, value[0].int_data);
+	addRawToTable(a, table_num, value, el_in_array);
 }
