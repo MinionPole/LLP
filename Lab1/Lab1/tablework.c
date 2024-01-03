@@ -181,7 +181,7 @@ int modifyTableData(struct FileMapping* a, int num, struct table_data* table) {
 int addRawToTable(struct FileMapping* a, int table_num, struct cell raw[], int el_in_array) {
 	struct table_data table = { .table_num = table_num };
 	getTableData(a, table_num, &table);
-
+	
 	int in_raw = countCellsInRaw(raw, el_in_array);
 	int return_value = 0;
 	if (in_raw == -1 || in_raw != table.row_size + 1) {
@@ -211,201 +211,348 @@ int addRawToTable(struct FileMapping* a, int table_num, struct cell raw[], int e
 		//table.rows_count++;
 		modifyTableData(a, table.table_num, &table);
 		//free(&table);
-	}
-	return return_value;
-}
-
-int deleteRawFromTable(struct FileMapping* a, int table_num, int raw_num) {
-	struct table_data table = { .table_num = table_num };
-	getTableData(a, table_num, &table);
-	int return_value = 0;
-	if (0) {
-		return_value = -1;
-	}
-	else {
-		int now_page = table.start_page_num;
-		struct map_file_of_view page;
-		openMyPage(a, now_page, &page); // открыли первую страницу таблицы
-		struct cell* now_cell = (struct cell*)page.my_page_start;
-
-		int our_raw_page_start = -1;
-		int our_raw_cell_start = -1;
 		
-		int while_flag = 0;
-		while (!while_flag) {
-			for (int i = 0; i < cellsOnList; i++) {
-				if (now_cell->flag == RAW_NUM && now_cell->int_data == raw_num) {
-					our_raw_page_start = now_page;
-					our_raw_cell_start = i;
-					while_flag = 1;
-					break;
-				}
-				now_cell++;
-			}
-			if (while_flag)
-				continue;
-
-
-			int num = getTransportCell(&page);
-			if (num == -1) {
-				return_value = -1;
-				while_flag = 1;
-				continue;;
-			}
-			UnmapViewOfFile(page.start);
-			openMyPage(a, num, &page);
-			now_cell = (struct table_data*)page.my_page_start;
-		}
-		UnmapViewOfFile(page.start);
-
-		if (our_raw_page_start != -1 && our_raw_cell_start != -1) {
-			struct map_file_of_view page;
-			openMyPage(a, our_raw_page_start, &page);
-			struct cell* now_cell = (struct cell*)page.my_page_start;
-			now_cell += our_raw_cell_start;
-			while_flag = 0;
-			int our_raw_page_now = our_raw_page_start;
-			while (!while_flag) {
-				for (int j = our_raw_cell_start; j < cellsOnList; j++) {
-					if ((now_cell->flag != RAW_NUM && now_cell->flag != TEMPEST) || (now_cell->flag == RAW_NUM && now_cell->int_data == raw_num)) {
-						now_cell->flag = TEMPEST;
-					}
-					else {
-						while_flag = 1;
-						break;
-					}
-					now_cell++;
-					our_raw_cell_start++;
-				}
-				if (while_flag)
-					continue;
-
-				int num = getTransportCell(&page);
-				if (num == -1) {
-					while_flag = 1;
-					continue;
-				}
-				UnmapViewOfFile(page.start);
-
-				if (our_raw_page_now != our_raw_page_start) { // пометить свободной
-					setMyPageFree(a, our_raw_page_now);
-					registerFreePage(a, our_raw_page_now);
-				}
-
-				openMyPage(a, num, &page);
-				our_raw_page_now = num;
-				now_cell = (struct table_data*)page.my_page_start;
-				our_raw_cell_start = 0;
-			}
-			UnmapViewOfFile(page.start);
-
-			int not_free_in_raw_page_start = pageCompresser(a, our_raw_page_start);
-
-			if (our_raw_page_now != our_raw_page_start) {
-				openMyPage(a, our_raw_page_start, &page);
-				pageCompresser(a, our_raw_page_now);
-				setTransportCell(a, our_raw_page_start, our_raw_page_now);
-				UnmapViewOfFile(page.start);
-			}
-			if (not_free_in_raw_page_start == 0) {
-				if (our_raw_page_start == table.start_page_num) {
-					openMyPage(a, our_raw_page_start, &page);
-					int new_table_page_start = getTransportCell(&page);
-					UnmapViewOfFile(page.start);
-					if (new_table_page_start != -1) {
-						setMyPageFree(a, our_raw_page_start);
-						registerFreePage(a, our_raw_page_start);
-						table.start_page_num = new_table_page_start;
-						modifyTableData(a, table_num, &table);
-					}
-				}
-				else {
-					openMyPage(a, table.start_page_num, &page);
-					int previous = table.start_page_num;
-					int next_page_in_table = getTransportCell(&page);
-					while (next_page_in_table != our_raw_page_start) {
-						UnmapViewOfFile(page.start);
-						openMyPage(a, next_page_in_table, &page);
-						previous = next_page_in_table;
-						next_page_in_table = getTransportCell(&page);
-					}
-					UnmapViewOfFile(page.start);
-
-					openMyPage(a, our_raw_page_start, &page);
-					int new_table_page_start = getTransportCell(&page);
-					UnmapViewOfFile(page.start);
-					setMyPageFree(a, our_raw_page_start);
-					registerFreePage(a, our_raw_page_start);
-					setTransportCell(a, previous, new_table_page_start);
-				}
-			}
-			
-		}
-
 	}
-	return return_value;
+	return 0;
 }
 
-
-int selectTableData(struct FileMapping* a, int table_num) {
+int deleteDataFromTable(struct FileMapping* a, int table_num, struct queryCondition conds[], int el_in_conds) {
+	// количество записей
+	int cnt = 0;
 	struct table_data table = { .table_num = table_num };
 	getTableData(a, table_num, &table);
-	struct map_file_of_view page;
-	openMyPage(a, table.start_page_num, &page);
-	struct cell* now = (struct cell*)page.my_page_start;
-	
-	int end_flag = 1;
-	int cnt = 0;
-	while (end_flag) {
-		for (int i = 0; i < cellsOnList; i++, now++) {
-			if (now->flag == RAW_NUM) {
-				//printf("%s", "\n");
-				cnt++;
-				continue;
-			}
-			if (now->flag == TABLE_START) {
-				continue;
-			}
-			if (now->flag == STRING_END) {
-				for (int j = 0; j < string_data_size_in_cell; j++) {
-					if (now->string_data[j] == '\0') {
-						break;
-					}
-					//printf("%c", now[j]);
-				}
-				//printf("%s", " ");
-				continue;
-			}
-			if (now->flag == STRING_CONTINUE) {
-				for (int j = 0; j < string_data_size_in_cell; j++) {
-					//printf("%c", now[j]);
-				}
-				continue;
-			}
 
-			if (now->flag != TEMPEST) {
-				if (now->type_of == INT_MYTYPE) {
-					//printf("%d ", now->int_data);
-				}
-				else {
-					//printf("%f ", now->double_data);
-				}
-			}
+	int while_flag = 1;
+	int current_page = table.start_page_num;
+	int current_cell = 0;
+	while (while_flag) {
+		int next_raw_size = getRawSize(a, current_page, current_cell);
+		struct cell* current_raw = malloc(next_raw_size * sizeof(struct cell));
+		copyRawToArray(a, current_page, current_cell, current_raw);
+		if (compareRawWithCondition(a, current_raw, next_raw_size, conds, el_in_conds)) {
+			deleteRaw(a, current_page, current_cell);
+			cnt++;
 		}
-		int new_page_num = now->int_data;
-		if (new_page_num == -1) {
-			end_flag = 0;
+		free(current_raw);
+		int getNextRes = getNextRaw(a, &current_page, &current_cell);
+		if (getNextRes == -1)
+			while_flag = 0;
+	}
+
+	int previos = -1;
+	current_page = table.start_page_num;
+	while_flag = 1;
+	while (while_flag) {
+		int compressed = pageCompresser(a, current_page);
+		int next_page_val = getTransportCellFromNum(a, current_page);
+		if (next_page_val == -1) {
+			while_flag = 0;
 			continue;
 		}
-		UnmapViewOfFile(page.start);
-		openMyPage(a, new_page_num, &page);
-		now = (struct cell*)page.my_page_start;;
+		if (compressed == 0) {
+			if (previos == -1) {
+				table.start_page_num = current_page;
+				modifyTableData(a, table_num, &table);
+			}
+			else {
+				setTransportCell(a, previos, next_page_val);
+			}
+			setMyPageFree(a, current_page);
+			registerFreePage(a, current_page);
+		}
+		previos = current_page;
+		current_page = next_page_val;
+	}
+
+	return cnt;
+}
+
+int deleteRaw(struct FileMapping* a, int start_page_num, int start_cell_num) {
+	struct map_file_of_view page;
+	openMyPage(a, start_page_num, &page);
+	struct cell* now_cell = (struct cell*)page.my_page_start;
+	now_cell += start_cell_num;
+
+	int raw_num = now_cell->int_data;
+	int while_flag = 1;
+	while (while_flag) {
+		if (now_cell->flag == TEMPEST || (now_cell->flag == RAW_NUM && now_cell->int_data != raw_num)) {
+			while_flag = 0;
+			continue;
+		}
+		if (now_cell->flag == TRANSPORT) {
+
+			if (now_cell->int_data == -1) {
+				while_flag = 0;
+			}
+			else {
+				int new_page = now_cell->int_data;
+				UnmapViewOfFile(page.start);
+				openMyPage(a, new_page, &page);
+				now_cell = (struct cell*)page.my_page_start;
+			}
+			continue;
+		}
+		now_cell->flag = TEMPEST;
+		now_cell++;
+	}
+	UnmapViewOfFile(page.start);
+	return 0;
+}
+
+
+int selectTableData(struct FileMapping* a, int table_num, struct queryCondition conds[], int el_in_conds){
+	// количество записей
+	int cnt = 0;
+	struct table_data table = { .table_num = table_num };
+	getTableData(a, table_num, &table);
+	
+	int while_flag = 1;
+	int current_page = table.start_page_num;
+	int current_cell = 0;
+	while (while_flag) {
+		int next_raw_size = getRawSize(a, current_page, current_cell);
+		struct cell* current_raw = malloc(next_raw_size * sizeof(struct cell));
+		copyRawToArray(a, current_page, current_cell, current_raw);
+		if (compareRawWithCondition(a, current_raw, next_raw_size, conds, el_in_conds)) {
+			//printRaw(current_raw, next_raw_size);
+			cnt++;
+		}
+		free(current_raw);
+		int getNextRes = getNextRaw(a, &current_page, &current_cell);
+		if (getNextRes == -1)
+			while_flag = 0;
+	}
+
+	return cnt;
+}
+
+int getRawSize(struct FileMapping* a, int start_page_num, int start_cell_num) {
+	struct map_file_of_view page;
+	openMyPage(a, start_page_num, &page);
+	struct cell* now_cell = (struct cell*)page.my_page_start;
+	now_cell += start_cell_num;
+
+	int cnt = 0;
+	int raw_num = now_cell->int_data;
+	int while_flag = 1;
+	while (while_flag) {
+		if (now_cell->flag == TEMPEST || (now_cell->flag == RAW_NUM && now_cell->int_data != raw_num)) {
+			while_flag = 0;
+			continue;
+		}
+		if (now_cell->flag == TRANSPORT) {
+
+			if (now_cell->int_data == -1) {
+				while_flag = 0;
+			}
+			else {
+				int new_page = now_cell->int_data;
+				UnmapViewOfFile(page.start);
+				openMyPage(a, new_page, &page);
+				now_cell = (struct cell*)page.my_page_start;
+			}
+			continue;
+		}
+		cnt++;
+		now_cell++;
+		
 	}
 	UnmapViewOfFile(page.start);
 	return cnt;
 }
 
-int changeRaw(struct FileMapping* a, int table_num, struct cell value[], int el_in_array) {
-	deleteRawFromTable(a, table_num, value[0].int_data);
+int copyRawToArray(struct FileMapping* a, int start_page_num, int start_cell_num, struct cell current_raw[]) {
+	struct map_file_of_view page;
+	openMyPage(a, start_page_num, &page);
+	struct cell* now_cell = (struct cell*)page.my_page_start;
+	now_cell += start_cell_num;
+
+	int raw_num = now_cell->int_data;
+	int while_flag = 1;
+	int current_raw_index = 0;
+	while (while_flag) {
+		if (now_cell->flag == TEMPEST || (now_cell->flag == RAW_NUM && now_cell->int_data != raw_num)) {
+			while_flag = 0;
+			continue;
+		}
+		if (now_cell->flag == TRANSPORT) {
+
+			if (now_cell->int_data == -1) {
+				while_flag = 0;
+			}
+			else {
+				int new_page = now_cell->int_data;
+				UnmapViewOfFile(page.start);
+				openMyPage(a, new_page, &page);
+				now_cell = (struct cell*)page.my_page_start;
+			}
+			continue;
+		}
+		current_raw[current_raw_index++] = (*now_cell);
+		now_cell++;
+
+	}
+	UnmapViewOfFile(page.start);
+}
+
+int compareRawWithCondition(struct FileMapping* a, struct cell current_raw[], int current_raw_el, struct queryCondition conds[], int el_in_conds) {
+
+	for (int i = 0; i < el_in_conds; i++) {
+		int l = 0, r = 0;
+		getColumn(current_raw, current_raw_el, conds[i].stolbec_num, &l, &r);
+		int int_value = -1e9;
+		double double_value = -1e9;
+		int ret_value = 0;
+		if (current_raw[l].flag == STRING_CONTINUE || current_raw[l].flag == STRING_END) {
+			int_value = (r - l - 1) * string_data_size_in_cell;
+			for (int j = 0; j < string_data_size_in_cell; j++) {
+				if (current_raw[r - 1].string_data[j] == '\0')
+					break;
+				int_value++;
+			}
+		}
+		else {
+			if (current_raw[l].type_of == INT_MYTYPE)
+				int_value = current_raw[l].int_data;
+			else
+				double_value = current_raw[l].double_data;
+		}
+
+		if (conds[i].sign == '>') {
+			if (int_value != -1e9) {
+				ret_value = (int_value > conds[i].int_data);
+			}
+			else {
+				ret_value = (double_value > conds[i].double_data);
+			}
+		}
+
+		if (conds[i].sign == '<') {
+			if (int_value != -1e9) {
+				ret_value = (int_value < conds[i].int_data);
+			}
+			else {
+				ret_value = (double_value < conds[i].double_data);
+			}
+		}
+
+		if (conds[i].sign == '=') {
+			if (int_value != -1e9) {
+				ret_value = (int_value == conds[i].int_data);
+			}
+			else {
+				ret_value = (double_value == conds[i].double_data);
+			}
+		}
+
+		if (ret_value == 0)
+			return 0;
+
+	}
+	return 1;
+}
+
+int getColumn(struct cell current_raw[], int current_raw_el, int column_num, int* l, int* r) {
+	int cnt = 0;
+	*l = -1;
+	*r = -1;
+	for (int i = 0; i < current_raw_el; i++) {
+		if (cnt == column_num && *l == -1) {
+			*l = i;
+		}
+		if (cnt != column_num && *l != -1) {
+			*r = i;
+			break;
+		}
+		if (current_raw[i].flag != STRING_CONTINUE)
+			cnt++;
+	}
+	if (*r == -1)
+		*r = current_raw_el;
+	return 0;
+}
+
+
+int printRaw(struct cell current_raw[], int raw_size) {
+	for (int i = 0; i < raw_size; i++) {
+
+		if (current_raw[i].flag == STRING_END) {
+			for (int j = 0; j < string_data_size_in_cell; j++) {
+				if (current_raw[i].string_data[j] == '\0')
+					break;
+				printf("%c", current_raw[i].string_data[j]);
+			}
+			printf("\n");
+			continue;
+		}
+
+		if (current_raw[i].flag == STRING_CONTINUE) {
+			for (int j = 0; j < string_data_size_in_cell; j++) {
+				printf("%c", current_raw[i].string_data[j]);
+			}
+			continue;
+		}
+
+		if (current_raw[i].flag == RAW_NUM) {
+			//printf("%d ", current_raw[i].int_data);
+			continue;
+		}
+
+		if (current_raw[i].type_of == INT_MYTYPE) {
+			printf("%d ", current_raw[i].int_data);
+		}
+		else {
+			printf("%f ", current_raw[i].double_data);
+		}
+	}
+	printf("\n");
+	return 0;
+}
+
+int getNextRaw(struct FileMapping* a, int *start_page_num, int *start_cell_num) {
+	struct map_file_of_view page;
+	openMyPage(a, *start_page_num, &page);
+	struct cell* now_cell = (struct cell*)page.my_page_start;
+	now_cell += *start_cell_num;
+
+	int cnt = 0;
+	int raw_num = now_cell->int_data;
+	int while_flag = 1;
+	int current_raw_index = 0;
+	int ret_value = 0;
+	while (while_flag) {
+		if ((now_cell->flag == RAW_NUM && now_cell->int_data != raw_num)) {
+			while_flag = 0;
+			continue;
+		}
+		if (now_cell->flag == TRANSPORT) {
+
+			if (now_cell->int_data == -1) {
+				while_flag = 0;
+				ret_value = -1;
+			}
+			else {
+				int new_page = now_cell->int_data;
+				UnmapViewOfFile(page.start);
+				openMyPage(a, new_page, &page);
+				*start_page_num = new_page;
+				*start_cell_num = 0;
+				now_cell = (struct cell*)page.my_page_start;
+			}
+			continue;
+		}
+		cnt++;
+		now_cell++;
+		*start_cell_num += 1;
+	}
+	UnmapViewOfFile(page.start);
+	return ret_value;
+}
+
+
+
+int changeRaw(struct FileMapping* a, int table_num, struct cell value[], int el_in_array, struct queryCondition conds[], int el_in_conds) {
+	deleteDataFromTable(a, table_num, conds, el_in_conds);
 	addRawToTable(a, table_num, value, el_in_array);
 }

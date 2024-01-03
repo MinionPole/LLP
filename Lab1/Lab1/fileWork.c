@@ -121,6 +121,15 @@ int getTransportCell(struct map_file_of_view* page) {
 	return ret->int_data;
 }
 
+int getTransportCellFromNum(struct FileMapping* a, int page_num) {
+	struct map_file_of_view page;
+	openMyPage(a, page_num, &page);
+	struct cell* ret = (struct cell*)page.my_page_start;
+
+	ret += cellsOnList;
+	return ret->int_data;
+}
+
 int setTransportCell(struct FileMapping* a, int page_num, int value) {
 	struct map_file_of_view page;
 	openMyPage(a, page_num, &page);
@@ -228,10 +237,11 @@ int getListCountFromMaping(struct FileMapping* Maping) {
 }
 
 
-int getFreePage(struct FileMapping* Maping){
+int getFreePage(struct FileMapping* Maping) {
 	struct map_file_of_view page;
 	openMyPage(Maping, free_block_start, &page);
 	struct cell* now = (struct cell*)page.my_page_start;
+
 	while (1) {
 		if (now->flag == TRANSPORT) {
 			if (now->int_data == -1) {
@@ -243,6 +253,7 @@ int getFreePage(struct FileMapping* Maping){
 			else {
 				int temp = now->int_data;
 				UnmapViewOfFile(page.start);
+
 				openMyPage(Maping, temp, &page);
 				now = (struct cell*)page.my_page_start;
 				continue;
@@ -268,7 +279,6 @@ int fillerDataToPage(struct FileMapping* Maping, int page_num, int cell_num, str
 	now_cell += cell_num;
 	int now_cell_num = cell_num;
 	int counter = 0;
-
 	while (counter < raw_size) {
 		for (; now_cell_num < cellsOnList && counter < raw_size;now_cell_num++) {
 			now_cell->flag = raw[counter].flag;
@@ -296,6 +306,8 @@ int fillerDataToPage(struct FileMapping* Maping, int page_num, int cell_num, str
 		now_cell_num = 0;
 	}
 	UnmapViewOfFile(page.start);
+
+
 	return now_page_num;
 }
 

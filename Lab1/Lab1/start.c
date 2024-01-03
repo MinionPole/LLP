@@ -87,21 +87,25 @@ int main(void) {
             free(raw_to_table);
         }
 
-       int cntT = 0;
-       /*for (int i = 0; i < 400; i++) {
+
+
+       /*int cntT = 0;
+       for (int i = 0; i < 20; i++) {
             int num = abs(rand()) % 5 + 1;
             if (startRaw[num] <= sizesRaw[num]) {
-                deleteRawFromTable(myMapping, num, startRaw[num]++);
+
+                deleteDataFromTable(myMapping, 1, cond1, 1);
                 cntT++;
             }
-       }*/
+       }
+       */
+
 
        if (z % 10 == 0) {
            // для хранения времени выполнения кода
-           double time_spent = 0.0;
-           clock_t begin = clock();
 
-           for (int i = 0; i < 20; i++) {
+
+           /*for (int i = 0; i < 20; i++) {
                int num = rand() % sizesRaw[1] + 1;
                struct cell raw_to_table[4];
                raw_to_table[0].flag = RAW_NUM;
@@ -114,21 +118,42 @@ int main(void) {
                }
                changeRaw(myMapping, 1, raw_to_table, 4);
            }
+           */
 
-                     
+
+
+           double time_spent = 0.0;
+           clock_t begin = clock();
+
+           struct queryCondition cond1;
+           cond1.int_data = 700;
+           cond1.sign = '>';
+           cond1.stolbec_num = 0;
+           cond1.type_of = INT_MYTYPE;
+
+           int temp = selectTableData(myMapping, 1, &cond1, 1);
 
            clock_t end = clock();
            time_spent += (double)(end - begin) / CLOCKS_PER_SEC;
-
-           printf("%d  ", sizesRaw[1]);
            printf("%f\n", time_spent);
 
 
-           /*
-           int temp = selectTableData(myMapping, 1);
+           //
            //printf("\n\n\n%d   %d   %d\n", sizesRaw[1], startRaw[1], sizesRaw[1] - startRaw[1] + 1);
-           printf("%d  ", temp);
-           */
+
+                     
+
+
+           
+           //printf("%d  ", temp);
+           //printf("\n\n\n%d   %d   %d\n", sizesRaw[1], startRaw[1], sizesRaw[1] - startRaw[1] + 1);
+           //printf("%d  ", sizesRaw[1]);
+
+
+
+           
+
+           
 
        }
 
@@ -203,8 +228,7 @@ int main(void) {
     addRawToTable(myMapping, 2, raw1_to_table2, 3);
     addRawToTable(myMapping, 2, raw2_to_table2, 3);
        */
-    deleteRawFromTable(myMapping, 1, 2);
-    deleteRawFromTable(myMapping, 2, 1);
+
 
     return 0;                       
 }                                   

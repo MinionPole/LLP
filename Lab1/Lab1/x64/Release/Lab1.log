@@ -1,10 +1,1 @@
-﻿  start.c
-  Создание кода
-C:\Users\romay\Desktop\Лабы\!LLP\Lab1\Lab1\fileWork.c(200): warning C4716: registerFreePage: должна возвращать значение
-C:\Users\romay\Desktop\Лабы\!LLP\Lab1\Lab1\fileWork.c(156): warning C4716: setMyPageFree: должна возвращать значение
-C:\Users\romay\Desktop\Лабы\!LLP\Lab1\Lab1\tablework.c(411): warning C4716: changeRaw: должна возвращать значение
-  21 of 29 functions (72.4%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    3 functions had inline decision re-evaluated but remain unchanged
-  Создание кода завершено
-  Lab1.vcxproj -> C:\Users\romay\Desktop\Лабы\!LLP\Lab1\x64\Release\Lab1.exe
+﻿LINK : fatal error LNK1104: не удается открыть файл "C:\Users\romay\Desktop\Лабы\!LLP\Lab1\x64\Release\Lab1.exe"

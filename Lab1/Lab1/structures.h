@@ -45,3 +45,13 @@ struct table_data {
 	enum table_flag flag;
 };
 
+
+struct queryCondition {
+	int stolbec_num;
+	char sign;
+	enum type type_of;
+	union {
+		int int_data;
+		double double_data;
+	};
+};
