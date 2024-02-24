@@ -1,0 +1,5 @@
+^C:\USERS\ROMAY\SOURCE\REPOS\PROJECT_BIZON_TEST\PROJECT_BIZON_TEST\LEXER.L
+"C:\Users\romay\source\repos\project_bizon_test\toolsf\bin\flex" -oLexer.c Lexer.l
+^C:\USERS\ROMAY\SOURCE\REPOS\PROJECT_BIZON_TEST\PROJECT_BIZON_TEST\PARSER.Y
+set PATH=C:\Users\romay\source\repos\project_bizon_test\toolsf\bin;%PATH%
+bison -d Parser.y

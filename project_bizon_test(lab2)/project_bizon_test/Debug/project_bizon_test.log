@@ -1,0 +1,5 @@
+﻿  ast.c
+C:\Users\romay\source\repos\project_bizon_test\project_bizon_test\ast.c(279,37): warning C4047: '!=': 'int' differs in levels of indirection from 'void *'
+  Lexer.c
+  Generating Code...
+  project_bizon_test.vcxproj -> C:\Users\romay\source\repos\project_bizon_test\Debug\project_bizon_test.exe
